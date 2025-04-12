@@ -10,7 +10,7 @@ const allowedOrigins = process.env.ANIWATCH_API_CORS_ALLOWED_ORIGINS
 const corsConfig = cors({
   allowMethods: ["GET"],
   maxAge: 600,
-  credentials: false,
+  credentials: true,
   origin: allowedOrigins,
 });
 
