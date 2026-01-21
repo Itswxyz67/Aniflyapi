@@ -5,8 +5,8 @@ describe("In-Memory Cache", () => {
     let cache: AniwatchAPICache;
 
     beforeEach(() => {
-        // Create a new cache instance for each test
-        cache = new (AniwatchAPICache as any)();
+        // Get instance for testing
+        cache = AniwatchAPICache.getInstance();
     });
 
     test("should use in-memory cache when Redis is not configured", () => {
@@ -79,7 +79,8 @@ describe("In-Memory Cache", () => {
         expect(callCount).toBe(1);
 
         // Clear cache
-        cache.clearCache();
+        const result = await cache.clearCache();
+        expect(result.type).toBe("memory");
 
         // Should fetch fresh data after clear
         await cache.getOrSet(dataGetter, cacheKey, 60);

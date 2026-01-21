@@ -11,13 +11,13 @@ export class AniwatchAPICache {
     private static instance: AniwatchAPICache | null = null;
 
     private client: Redis | null;
-    private memoryCache: Map<string, CacheEntry<any>> = new Map();
+    private memoryCache: Map<string, CacheEntry<unknown>> = new Map();
     private cleanupInterval: NodeJS.Timeout | null = null;
     public enabled: boolean = false;
     public useMemoryCache: boolean = false;
 
     static enabled = false;
-    // 1 year in seconds: 365 days * 24 hours * 60 minutes * 60 seconds
+    // 1 year in seconds: 365 days * 24 hours * 60 minutes * 60 seconds = 31536000
     static DEFAULT_CACHE_EXPIRY_SECONDS = 31536000 as const;
     static CACHE_EXPIRY_HEADER_NAME = "Aniwatch-Cache-Expiry" as const;
 
@@ -123,17 +123,26 @@ export class AniwatchAPICache {
     /**
      * Clear all cache entries (useful for updates)
      */
-    clearCache() {
+    async clearCache() {
         if (this.useMemoryCache) {
             const size = this.memoryCache.size;
             this.memoryCache.clear();
             console.info(
                 `aniwatch-api cleared ${size} in-memory cache entries`
             );
+            return { cleared: size, type: "memory" };
         } else {
+            // For Redis, we could implement FLUSHDB but it's risky
+            // Instead, log a warning and return info
             console.warn(
-                "Cache clearing is only supported for in-memory cache"
+                "Cache clearing for Redis is not implemented. Please use Redis CLI or management tools to clear the cache."
             );
+            return {
+                cleared: 0,
+                type: "redis",
+                message:
+                    "Redis cache clearing not supported. Use Redis management tools.",
+            };
         }
     }
 
