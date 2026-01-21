@@ -17,7 +17,7 @@ describe("In-Memory Cache", () => {
     test("should cache and retrieve data", async () => {
         const testData = { message: "Hello, World!" };
         const cacheKey = "test-key";
-        
+
         let callCount = 0;
         const dataGetter = async () => {
             callCount++;
@@ -38,7 +38,7 @@ describe("In-Memory Cache", () => {
     test("should expire cached data after TTL", async () => {
         const testData = { message: "Hello, World!" };
         const cacheKey = "test-expiry-key";
-        
+
         let callCount = 0;
         const dataGetter = async () => {
             callCount++;
@@ -50,7 +50,7 @@ describe("In-Memory Cache", () => {
         expect(callCount).toBe(1);
 
         // Wait for expiry
-        await new Promise(resolve => setTimeout(resolve, 1100));
+        await new Promise((resolve) => setTimeout(resolve, 1100));
 
         // Should fetch fresh data
         await cache.getOrSet(dataGetter, cacheKey, 1);
@@ -59,15 +59,15 @@ describe("In-Memory Cache", () => {
 
     test("should get cache stats", () => {
         const stats = cache.getCacheStats();
-        expect(stats.type).toBe('memory');
+        expect(stats.type).toBe("memory");
         expect(stats.enabled).toBe(true);
-        expect(typeof stats.size).toBe('number');
+        expect(typeof stats.size).toBe("number");
     });
 
     test("should clear cache", async () => {
         const testData = { message: "Hello, World!" };
         const cacheKey = "test-clear-key";
-        
+
         let callCount = 0;
         const dataGetter = async () => {
             callCount++;
@@ -88,6 +88,8 @@ describe("In-Memory Cache", () => {
 
     test("should use 1 year default expiry", () => {
         const expectedExpiry = 365 * 24 * 60 * 60; // 1 year in seconds
-        expect(AniwatchAPICache.DEFAULT_CACHE_EXPIRY_SECONDS).toBe(expectedExpiry);
+        expect(AniwatchAPICache.DEFAULT_CACHE_EXPIRY_SECONDS).toBe(
+            expectedExpiry
+        );
     });
 });

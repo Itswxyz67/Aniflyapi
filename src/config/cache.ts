@@ -18,18 +18,18 @@ export class AniwatchAPICache {
 
     static enabled = false;
     // 1 year in seconds: 365 days * 24 hours * 60 minutes * 60 seconds
-    static DEFAULT_CACHE_EXPIRY_SECONDS = 365 * 24 * 60 * 60 as const;
+    static DEFAULT_CACHE_EXPIRY_SECONDS = 31536000 as const;
     static CACHE_EXPIRY_HEADER_NAME = "Aniwatch-Cache-Expiry" as const;
 
     constructor() {
         const redisConnURL = env.ANIWATCH_API_REDIS_CONN_URL;
         const useRedis = Boolean(redisConnURL);
-        
+
         // Enable caching always (either Redis or in-memory)
         this.enabled = AniwatchAPICache.enabled = true;
         this.useMemoryCache = !useRedis;
         this.client = useRedis ? new Redis(String(redisConnURL)) : null;
-        
+
         // Start cleanup interval for in-memory cache
         if (this.useMemoryCache) {
             this.startCleanupInterval();
@@ -55,25 +55,27 @@ export class AniwatchAPICache {
             // Use in-memory cache
             const cached = this.memoryCache.get(key);
             const now = Date.now();
-            
+
             if (cached && cached.expiresAt > now) {
                 return cached.data as T;
             }
-            
+
             // Fetch fresh data
             const data = await dataGetter();
             this.memoryCache.set(key, {
                 data,
-                expiresAt: now + (expirySeconds * 1000)
+                expiresAt: now + expirySeconds * 1000,
             });
             return data;
         } else {
             // Use Redis cache
             const cachedData = (await this.client?.get?.(key)) || null;
             let data: T | null = null;
-            
+
             try {
-                data = cachedData ? (JSON.parse(String(cachedData)) as T) : null;
+                data = cachedData
+                    ? (JSON.parse(String(cachedData)) as T)
+                    : null;
             } catch (err) {
                 data = null;
             }
@@ -96,23 +98,26 @@ export class AniwatchAPICache {
      */
     private startCleanupInterval() {
         // Run cleanup every hour
-        this.cleanupInterval = setInterval(() => {
-            const now = Date.now();
-            let cleanedCount = 0;
-            
-            for (const [key, entry] of this.memoryCache.entries()) {
-                if (entry.expiresAt <= now) {
-                    this.memoryCache.delete(key);
-                    cleanedCount++;
+        this.cleanupInterval = setInterval(
+            () => {
+                const now = Date.now();
+                let cleanedCount = 0;
+
+                for (const [key, entry] of this.memoryCache.entries()) {
+                    if (entry.expiresAt <= now) {
+                        this.memoryCache.delete(key);
+                        cleanedCount++;
+                    }
                 }
-            }
-            
-            if (cleanedCount > 0) {
-                console.info(
-                    `aniwatch-api cleaned ${cleanedCount} expired cache entries`
-                );
-            }
-        }, 60 * 60 * 1000); // 1 hour
+
+                if (cleanedCount > 0) {
+                    console.info(
+                        `aniwatch-api cleaned ${cleanedCount} expired cache entries`
+                    );
+                }
+            },
+            60 * 60 * 1000
+        ); // 1 hour
     }
 
     /**
@@ -138,14 +143,14 @@ export class AniwatchAPICache {
     getCacheStats() {
         if (this.useMemoryCache) {
             return {
-                type: 'memory',
+                type: "memory",
                 size: this.memoryCache.size,
-                enabled: this.enabled
+                enabled: this.enabled,
             };
         }
         return {
-            type: 'redis',
-            enabled: this.enabled
+            type: "redis",
+            enabled: this.enabled,
         };
     }
 
@@ -155,7 +160,7 @@ export class AniwatchAPICache {
             clearInterval(this.cleanupInterval);
             this.cleanupInterval = null;
         }
-        
+
         // Close Redis connection if applicable
         this.client
             ?.quit()
@@ -171,7 +176,7 @@ export class AniwatchAPICache {
                     `aniwatch-api error while closing redis connection: ${err}`
                 );
             });
-        
+
         // Clear in-memory cache
         if (this.useMemoryCache) {
             this.memoryCache.clear();

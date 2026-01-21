@@ -62,9 +62,9 @@ app.get("/cache/stats", async (c) => {
 app.post("/cache/clear", async (c) => {
     const { cache } = await import("./config/cache.js");
     cache.clearCache();
-    return c.json({ 
-        status: 200, 
-        message: "Cache cleared successfully" 
+    return c.json({
+        status: 200,
+        message: "Cache cleared successfully",
     });
 });
 
