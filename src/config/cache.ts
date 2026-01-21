@@ -1,21 +1,39 @@
 import { Redis } from "ioredis";
 import { env } from "./env.js";
 
+// In-memory cache store
+interface CacheEntry<T> {
+    data: T;
+    expiresAt: number;
+}
+
 export class AniwatchAPICache {
     private static instance: AniwatchAPICache | null = null;
 
     private client: Redis | null;
+    private memoryCache: Map<string, CacheEntry<unknown>> = new Map();
+    private cleanupInterval: NodeJS.Timeout | null = null;
     public enabled: boolean = false;
+    public useMemoryCache: boolean = false;
 
     static enabled = false;
-    // 5 mins, 5 * 60
-    static DEFAULT_CACHE_EXPIRY_SECONDS = 300 as const;
+    // 1 year in seconds: 365 days * 24 hours * 60 minutes * 60 seconds = 31536000
+    static DEFAULT_CACHE_EXPIRY_SECONDS = 31536000 as const;
     static CACHE_EXPIRY_HEADER_NAME = "Aniwatch-Cache-Expiry" as const;
 
     constructor() {
         const redisConnURL = env.ANIWATCH_API_REDIS_CONN_URL;
-        this.enabled = AniwatchAPICache.enabled = Boolean(redisConnURL);
-        this.client = this.enabled ? new Redis(String(redisConnURL)) : null;
+        const useRedis = Boolean(redisConnURL);
+
+        // Enable caching always (either Redis or in-memory)
+        this.enabled = AniwatchAPICache.enabled = true;
+        this.useMemoryCache = !useRedis;
+        this.client = useRedis ? new Redis(String(redisConnURL)) : null;
+
+        // Start cleanup interval for in-memory cache
+        if (this.useMemoryCache) {
+            this.startCleanupInterval();
+        }
     }
 
     static getInstance() {
@@ -26,31 +44,133 @@ export class AniwatchAPICache {
     }
 
     /**
-     * @param expirySeconds set to 300 (5 mins) by default
+     * @param expirySeconds set to 1 year by default
      */
     async getOrSet<T>(
         dataGetter: () => Promise<T>,
         key: string,
         expirySeconds: number = AniwatchAPICache.DEFAULT_CACHE_EXPIRY_SECONDS
     ) {
-        const cachedData = this.enabled
-            ? (await this.client?.get?.(key)) || null
-            : null;
-        let data = JSON.parse(String(cachedData)) as T;
+        if (this.useMemoryCache) {
+            // Use in-memory cache
+            const cached = this.memoryCache.get(key);
+            const now = Date.now();
 
-        if (!data) {
-            data = await dataGetter();
-            await this.client?.set?.(
-                key,
-                JSON.stringify(data),
-                "EX",
-                expirySeconds
-            );
+            if (cached && cached.expiresAt > now) {
+                return cached.data as T;
+            }
+
+            // Fetch fresh data
+            const data = await dataGetter();
+            this.memoryCache.set(key, {
+                data,
+                expiresAt: now + expirySeconds * 1000,
+            });
+            return data;
+        } else {
+            // Use Redis cache
+            const cachedData = (await this.client?.get?.(key)) || null;
+            let data: T | null = null;
+
+            try {
+                data = cachedData
+                    ? (JSON.parse(String(cachedData)) as T)
+                    : null;
+            } catch (err) {
+                data = null;
+            }
+
+            if (!data) {
+                data = await dataGetter();
+                await this.client?.set?.(
+                    key,
+                    JSON.stringify(data),
+                    "EX",
+                    expirySeconds
+                );
+            }
+            return data;
         }
-        return data;
+    }
+
+    /**
+     * Start periodic cleanup of expired entries in memory cache
+     */
+    private startCleanupInterval() {
+        // Run cleanup every hour
+        this.cleanupInterval = setInterval(
+            () => {
+                const now = Date.now();
+                let cleanedCount = 0;
+
+                for (const [key, entry] of this.memoryCache.entries()) {
+                    if (entry.expiresAt <= now) {
+                        this.memoryCache.delete(key);
+                        cleanedCount++;
+                    }
+                }
+
+                if (cleanedCount > 0) {
+                    console.info(
+                        `aniwatch-api cleaned ${cleanedCount} expired cache entries`
+                    );
+                }
+            },
+            60 * 60 * 1000
+        ); // 1 hour
+    }
+
+    /**
+     * Clear all cache entries (useful for updates)
+     */
+    async clearCache() {
+        if (this.useMemoryCache) {
+            const size = this.memoryCache.size;
+            this.memoryCache.clear();
+            console.info(
+                `aniwatch-api cleared ${size} in-memory cache entries`
+            );
+            return { cleared: size, type: "memory" };
+        } else {
+            // For Redis, we could implement FLUSHDB but it's risky
+            // Instead, log a warning and return info
+            console.warn(
+                "Cache clearing for Redis is not implemented. Please use Redis CLI or management tools to clear the cache."
+            );
+            return {
+                cleared: 0,
+                type: "redis",
+                message:
+                    "Redis cache clearing not supported. Use Redis management tools.",
+            };
+        }
+    }
+
+    /**
+     * Get cache statistics
+     */
+    getCacheStats() {
+        if (this.useMemoryCache) {
+            return {
+                type: "memory",
+                size: this.memoryCache.size,
+                enabled: this.enabled,
+            };
+        }
+        return {
+            type: "redis",
+            enabled: this.enabled,
+        };
     }
 
     closeConnection() {
+        // Stop cleanup interval
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+
+        // Close Redis connection if applicable
         this.client
             ?.quit()
             ?.then(() => {
@@ -65,6 +185,11 @@ export class AniwatchAPICache {
                     `aniwatch-api error while closing redis connection: ${err}`
                 );
             });
+
+        // Clear in-memory cache
+        if (this.useMemoryCache) {
+            this.memoryCache.clear();
+        }
     }
 }
 

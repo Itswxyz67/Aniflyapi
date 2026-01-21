@@ -53,6 +53,21 @@ app.get("/v", async (c) =>
     )
 );
 
+// Cache management endpoints
+app.get("/cache/stats", async (c) => {
+    const { cache } = await import("./config/cache.js");
+    return c.json(cache.getCacheStats());
+});
+
+app.post("/cache/clear", async (c) => {
+    const { cache } = await import("./config/cache.js");
+    const result = await cache.clearCache();
+    return c.json({
+        status: 200,
+        ...result,
+    });
+});
+
 app.use(cacheConfigSetter(BASE_PATH.length));
 
 app.basePath(BASE_PATH).route("/hianime", hianimeRouter);

@@ -137,7 +137,7 @@ The `-d` flag runs the container in detached mode, and the `--name` flag is used
 
 Currently this API supports parsing of only one custom header, and more may be implemented in the future to accommodate varying needs.
 
-- `Aniwatch-Cache-Expiry`: This custom request header is used to specify the cache expiration duration in **seconds** (defaults to 300 or 5 mins if the header is missing). The `ANIWATCH_API_REDIS_CONN_URL` env is required for this custom header to function as intended; otherwise, there's no point in setting this custom request header. A **response header** of the same name is also returned with the value set to the cache expiration duration in seconds if `ANIWATCH_API_REDIS_CONN_URL` env is set.
+- `Aniwatch-Cache-Expiry`: This custom request header is used to specify the cache expiration duration in **seconds** (defaults to 31,536,000 seconds or 1 year if the header is missing). A **response header** of the same name is also returned with the value set to the cache expiration duration in seconds if caching is enabled.
 
 ### Environment Variables
 
@@ -149,7 +149,7 @@ More info can be found in the [`.env.example`](https://github.com/ghoshRitesh12/
 - `ANIWATCH_API_CORS_ALLOWED_ORIGINS`: Allowed origins, separated by commas and no spaces in between (CSV).
 - `ANIWATCH_API_DEPLOYMENT_ENV`: The deployment environment of the Aniwatch API. Many configurations depend on this env, rate limiting being one of them. It must be set incase of serverless deployments; otherwise, you may run into weird issues. Possible values: `'nodejs' | 'docker' | 'vercel' | 'render' | 'cloudflare-workers'`.
 - `ANIWATCH_API_HOSTNAME`: Set this to your api instance's hostname to enable rate limiting, don't have this value if you don't wish to rate limit.
-- `ANIWATCH_API_REDIS_CONN_URL`: This env is optional by default and can be set to utilize Redis caching functionality. It has to be a valid connection URL; otherwise, the Redis client can throw unexpected errors.
+- `ANIWATCH_API_REDIS_CONN_URL`: This env is optional. If not set, the API will use in-memory caching by default. In-memory caching stores data in the server's RAM (with a 1-year default expiry) and is reset on server restart. Setting this to a valid Redis connection URL enables Redis-based caching, which persists across restarts and can be shared across multiple instances.
 - `ANIWATCH_API_S_MAXAGE`: Specifies the maximum amount of time (in seconds) a resource is considered fresh when served by a CDN cache.
 - `ANIWATCH_API_STALE_WHILE_REVALIDATE`: Specifies the amount of time (in seconds) a resource is served stale while a new one is fetched.
 
@@ -160,7 +160,10 @@ More info can be found in the [`.env.example`](https://github.com/ghoshRitesh12/
 > For personal deployments:
 >
 > - If you want to have rate limiting in your application, then set the `ANIWATCH_API_HOSTNAME` env to your deployed instance's hostname; otherwise, don't set or have this env at all. If you set this env to an incorrect value, you may face other issues.
-> - It's optional by default, but if you want to have endpoint response caching functionality, then set the `ANIWATCH_API_REDIS_CONN_URL` env to a valid Redis connection URL. If the connection URL is invalid, the Redis client can throw unexpected errors.
+> - The API now includes built-in in-memory caching with a 1-year default expiry. This means responses are cached automatically to improve performance and reduce load on the source website.
+> - You can clear the cache using `POST /cache/clear` endpoint to update cached data when the official API documentation gets updated.
+> - You can check cache statistics using `GET /cache/stats` endpoint.
+> - It's optional, but if you want to have persistent caching functionality (across server restarts and multiple instances), then set the `ANIWATCH_API_REDIS_CONN_URL` env to a valid Redis connection URL. If the connection URL is invalid, the Redis client can throw unexpected errors.
 > - You **may or may not** wanna remove the last `if` block within the [IIFE](https://developer.mozilla.org/en-US/docs/Glossary/IIFE) in the [`server.ts`](https://github.com/ghoshRitesh12/aniwatch-api/blob/main/src/server.ts) file. It is for **render free deployments** only, as their free tier has an approx 10 or 15 minute sleep time. That `if` block keeps the server awake and prevents it from sleeping. You can enable the automatic health check by setting the environment variables `ANIWATCH_API_HOSTNAME` to your deployment's hostname, and `ANIWATCH_API_DEPLOYMENT_ENV` to `render` in your environment variables. If you are not using render, you can remove that `if` block.
 > - If you are using a serverless deployment, then set the `ANIWATCH_API_DEPLOYMENT_ENV` env to `vercel` or `render` or `cloudflare-workers` depending on your deployment platform. This is because the API uses this env to configure different functionalities, such as rate limiting, graceful shutdown or hosting static files.
 

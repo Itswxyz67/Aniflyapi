@@ -69,7 +69,6 @@ git checkout -b <new-branch-name>
 ### Project Structure
 
 - `src` directory contains all the source code required for this project
-
     - `controllers` directory contains all the controller logic
     - `types` directory contains all types & interfaces used for this project
     - `parsers` directory contains all the parsing aka scraping logic
