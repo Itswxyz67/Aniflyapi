@@ -14,7 +14,7 @@ import type { ServerContext } from "./config/context.js";
 
 import { hianimeRouter } from "./routes/hianime.js";
 import { logging } from "./middleware/logging.js";
-import { cacheConfigSetter, cacheControl } from "./middleware/cache.js";
+import { cacheControl } from "./middleware/cache.js";
 
 import pkgJson from "../package.json" with { type: "json" };
 
@@ -52,23 +52,6 @@ app.get("/v", async (c) =>
             `aniwatch-package: v${"dependencies" in pkgJson && pkgJson?.dependencies?.aniwatch ? pkgJson?.dependencies?.aniwatch : "-1"}`
     )
 );
-
-// Cache management endpoints
-app.get("/cache/stats", async (c) => {
-    const { cache } = await import("./config/cache.js");
-    return c.json(cache.getCacheStats());
-});
-
-app.post("/cache/clear", async (c) => {
-    const { cache } = await import("./config/cache.js");
-    const result = await cache.clearCache();
-    return c.json({
-        status: 200,
-        ...result,
-    });
-});
-
-app.use(cacheConfigSetter(BASE_PATH.length));
 
 app.basePath(BASE_PATH).route("/hianime", hianimeRouter);
 app.basePath(BASE_PATH).get("/anicrush", (c) =>
