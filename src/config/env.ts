@@ -62,17 +62,7 @@ export const env = cleanEnv(process.env, {
         default: undefined,
         example:
             "rediss://default:your-secure-password@your-redis-instance-name.provider.com:6379",
-        desc: "This env is optional by default and can be set to utilize Redis caching functionality. It has to be a valid connection URL; otherwise, the Redis client can throw unexpected errors",
-    }),
-
-    ANIWATCH_API_S_MAXAGE: num({
-        default: 60,
-        desc: "Specifies the maximum amount of time (in seconds) a resource is considered fresh when served by a CDN cache.",
-    }),
-
-    ANIWATCH_API_STALE_WHILE_REVALIDATE: num({
-        default: 30,
-        desc: "Specifies the amount of time (in seconds) a resource is served stale while a new one is fetched.",
+        desc: "Optional Redis connection URL for distributed caching (not used with Vercel Edge caching)",
     }),
 
     NODE_ENV: str({

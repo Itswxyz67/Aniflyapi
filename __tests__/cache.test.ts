@@ -1,96 +1,56 @@
-import { expect, test, describe, beforeEach } from "vitest";
-import { AniwatchAPICache } from "../src/config/cache.js";
+import { expect, test, describe } from "vitest";
+import { CACHE_HEADERS, ROUTE_CACHE_CONFIG } from "../src/config/cacheHeaders.js";
 
-describe("In-Memory Cache", () => {
-    let cache: AniwatchAPICache;
-
-    beforeEach(() => {
-        // Get instance for testing
-        cache = AniwatchAPICache.getInstance();
+describe("Cache Headers Configuration", () => {
+    test("should have correct 1-year cache header", () => {
+        expect(CACHE_HEADERS.YEAR).toBe("public, s-maxage=31536000, immutable");
     });
 
-    test("should use in-memory cache when Redis is not configured", () => {
-        expect(cache.enabled).toBe(true);
-        expect(cache.useMemoryCache).toBe(true);
+    test("should have correct 1-day cache header with stale-while-revalidate", () => {
+        expect(CACHE_HEADERS.DAY).toBe("public, s-maxage=86400, stale-while-revalidate=604800");
     });
 
-    test("should cache and retrieve data", async () => {
-        const testData = { message: "Hello, World!" };
-        const cacheKey = "test-key";
-
-        let callCount = 0;
-        const dataGetter = async () => {
-            callCount++;
-            return testData;
-        };
-
-        // First call should fetch and cache
-        const result1 = await cache.getOrSet(dataGetter, cacheKey, 60);
-        expect(result1).toEqual(testData);
-        expect(callCount).toBe(1);
-
-        // Second call should retrieve from cache
-        const result2 = await cache.getOrSet(dataGetter, cacheKey, 60);
-        expect(result2).toEqual(testData);
-        expect(callCount).toBe(1); // Should still be 1, not 2
+    test("should have correct 1-month cache header with stale-while-revalidate", () => {
+        expect(CACHE_HEADERS.MONTH).toBe("public, s-maxage=2592000, stale-while-revalidate=7776000");
     });
 
-    test("should expire cached data after TTL", async () => {
-        const testData = { message: "Hello, World!" };
-        const cacheKey = "test-expiry-key";
-
-        let callCount = 0;
-        const dataGetter = async () => {
-            callCount++;
-            return testData;
-        };
-
-        // Cache with 1 second TTL
-        await cache.getOrSet(dataGetter, cacheKey, 1);
-        expect(callCount).toBe(1);
-
-        // Wait for expiry
-        await new Promise((resolve) => setTimeout(resolve, 1100));
-
-        // Should fetch fresh data
-        await cache.getOrSet(dataGetter, cacheKey, 1);
-        expect(callCount).toBe(2);
+    test("should configure anime detail with 1-year cache", () => {
+        expect(ROUTE_CACHE_CONFIG.animeDetail).toBe(CACHE_HEADERS.YEAR);
     });
 
-    test("should get cache stats", () => {
-        const stats = cache.getCacheStats();
-        expect(stats.type).toBe("memory");
-        expect(stats.enabled).toBe(true);
-        expect(typeof stats.size).toBe("number");
+    test("should configure episodes with 1-year cache", () => {
+        expect(ROUTE_CACHE_CONFIG.episodes).toBe(CACHE_HEADERS.YEAR);
     });
 
-    test("should clear cache", async () => {
-        const testData = { message: "Hello, World!" };
-        const cacheKey = "test-clear-key";
-
-        let callCount = 0;
-        const dataGetter = async () => {
-            callCount++;
-            return testData;
-        };
-
-        // Cache data
-        await cache.getOrSet(dataGetter, cacheKey, 60);
-        expect(callCount).toBe(1);
-
-        // Clear cache
-        const result = await cache.clearCache();
-        expect(result.type).toBe("memory");
-
-        // Should fetch fresh data after clear
-        await cache.getOrSet(dataGetter, cacheKey, 60);
-        expect(callCount).toBe(2);
+    test("should configure home with 1-day cache", () => {
+        expect(ROUTE_CACHE_CONFIG.home).toBe(CACHE_HEADERS.DAY);
     });
 
-    test("should use 1 year default expiry", () => {
-        const expectedExpiry = 365 * 24 * 60 * 60; // 1 year in seconds
-        expect(AniwatchAPICache.DEFAULT_CACHE_EXPIRY_SECONDS).toBe(
-            expectedExpiry
-        );
+    test("should configure A-Z list with 1-month cache", () => {
+        expect(ROUTE_CACHE_CONFIG.azList).toBe(CACHE_HEADERS.MONTH);
+    });
+
+    test("should configure schedule with 1-year cache", () => {
+        expect(ROUTE_CACHE_CONFIG.schedule).toBe(CACHE_HEADERS.YEAR);
+    });
+
+    test("should configure category with 1-month cache", () => {
+        expect(ROUTE_CACHE_CONFIG.category).toBe(CACHE_HEADERS.MONTH);
+    });
+
+    test("should configure genre with 1-month cache", () => {
+        expect(ROUTE_CACHE_CONFIG.genre).toBe(CACHE_HEADERS.MONTH);
+    });
+
+    test("should configure producer with 1-month cache", () => {
+        expect(ROUTE_CACHE_CONFIG.producer).toBe(CACHE_HEADERS.MONTH);
+    });
+
+    test("should configure search with 1-month cache", () => {
+        expect(ROUTE_CACHE_CONFIG.search).toBe(CACHE_HEADERS.MONTH);
+    });
+
+    test("should configure qtip with 1-year cache", () => {
+        expect(ROUTE_CACHE_CONFIG.qtip).toBe(CACHE_HEADERS.YEAR);
     });
 });
