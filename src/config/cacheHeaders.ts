@@ -7,10 +7,14 @@ export const CACHE_HEADERS = {
     // 1 year cache for immutable content (anime details, episodes, schedule)
     YEAR: "public, s-maxage=31536000, immutable",
     
-    // 1 day cache with stale-while-revalidate for homepage
+    // 1 day cache with 7-day stale-while-revalidate for homepage
+    // Allows serving stale content while fetching fresh data in background
+    // Ensures users always get fast responses even during revalidation
     DAY: "public, s-maxage=86400, stale-while-revalidate=604800",
     
-    // 1 month cache with stale-while-revalidate for A-Z list
+    // 1 month cache with 90-day stale-while-revalidate for A-Z list
+    // Long stale period is acceptable since anime lists change infrequently
+    // Provides resilience during peak traffic or temporary backend issues
     MONTH: "public, s-maxage=2592000, stale-while-revalidate=7776000",
 } as const;
 
